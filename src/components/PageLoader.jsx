@@ -11,7 +11,6 @@ export default function PageLoader() {
   const [fadeOut, setFadeOut]   = useState(false)
   const startedAt  = useRef(null)
   const timers     = useRef([])
-  const touchFired = useRef(false)
 
   const clearTimers = useCallback(() => {
     timers.current.forEach(clearTimeout)
@@ -53,38 +52,23 @@ export default function PageLoader() {
     const t4 = setTimeout(() => setProgress(72),  1100)
     const t5 = setTimeout(() => setProgress(83),  1500)
     const t6 = setTimeout(() => setProgress(90),  1800)
-    timers.current = [t1, t2, t3, t4, t5, t6]
+    // Sécurité : force l'arrêt après 8s si usePageReady ne répond jamais
+    const tSafety = setTimeout(() => triggerStopRef.current?.(), 8000)
+    timers.current = [t1, t2, t3, t4, t5, t6, tSafety]
 
     loaderBus.onStop(() => triggerStopRef.current?.())
   }, [clearTimers])
 
   useEffect(() => {
-    const handleTouch = (e) => {
+    const handleClick = (e) => {
       const anchor = e.target.closest('a[href], button[data-nav]')
       if (!anchor) return
       const href = anchor.getAttribute('href') || anchor.getAttribute('data-nav')
-      if (href && href.startsWith('/') && !href.startsWith('//')) {
-        touchFired.current = true
-        showLoader(href)
-      }
+      showLoader(href)
     }
 
-    const handleClick = (e) => {
-      if (touchFired.current) {
-        touchFired.current = false
-        return
-      }
-      const anchor = e.target.closest('a[href], button[data-nav]')
-      if (!anchor) return
-      showLoader(anchor.getAttribute('href'))
-    }
-
-    document.addEventListener('touchstart', handleTouch, { passive: true })
-    document.addEventListener('click',      handleClick)
-    return () => {
-      document.removeEventListener('touchstart', handleTouch)
-      document.removeEventListener('click',      handleClick)
-    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
   }, [showLoader])
 
   if (!visible) return null
